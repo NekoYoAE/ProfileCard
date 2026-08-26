@@ -1,18 +1,3 @@
-/**
- * profile-card Worker
- *
- * 用法: https://<你的域名>/?oid=用户oid
- * 展示用户卡片: 主页背景图 / 头像 / 名称 / 获赞 / 粉丝
- *
- * 数据来源 (ccw-api):
- *   - POST https://community-web.ccw.site/user-card/detail  { oid }            -> 头像/名称/获赞/粉丝
- *   - POST https://community-web.ccw.site/students/profile   { studentOid }    -> memberArchive.homepageCover 主页背景图
- *
- * 注意: 社交平台会缓存图片/链接预览，更新卡片后平台仍可能显示旧版。
- * 请在 URL 后加版本参数强制平台重新抓取, 例如: ?oid=xxx&v=2
- * (v 参数已纳入缓存 key, 可同时绕过 Worker 自身缓存)
- */
-
 const API_BASE = "https://community-web.ccw.site";
 const OID_RE = /^[0-9a-fA-F]{24}$/;
 const CACHE_TTL = 1 * 60;
@@ -27,7 +12,9 @@ export default {
 
     const oid = (url.searchParams.get("oid") || "").trim();
 
-    // 没有 oid -> 显示使用说明
+    // 主题: 缺省或 dark = 深色, light = 浅色
+    const theme = (url.searchParams.get("theme") || "dark").toLowerCase() === "light" ? "light" : "dark";
+
     if (!oid) {
       return html(renderHelp(url.origin), { "cache-control": "public, max-age=60" });
     }
@@ -39,7 +26,6 @@ export default {
       });
     }
 
-    // 尝试命中缓存（key 用完整 URL，包含 v 等版本参数）
     const cacheKey = new Request(url, request);
     const cache = caches.default;
     const cached = await cache.match(cacheKey);
@@ -82,7 +68,7 @@ export default {
         followerCount: stats.followerCount ?? 0,
       };
 
-      const response = svg(renderCardSvg(data), {
+      const response = svg(renderCardSvg(data, theme), {
         "cache-control": `public, max-age=${CACHE_TTL}`,
       });
       ctx.waitUntil(cache.put(cacheKey, response.clone()));
@@ -228,13 +214,34 @@ function fmt(n) {
 }
 
 /** SVG 用户卡片 */
-function renderCardSvg({ name, avatarUri, backgroundUri, bio, likeCount, followerCount }) {
+function renderCardSvg({ name, avatarUri, backgroundUri, bio, likeCount, followerCount }, theme = "dark") {
   const W = 400;
   const H = 265;
   const safeName = truncate(name || "未知用户", 360, 20);
   const safeBio = truncate(bio || "", 360, 13);
   // 有简介时分隔线下移，保证与文字间距一致
   const lineY = safeBio ? 206 : 198;
+
+  const isDark = theme !== "light";
+  const themeStyle = isDark
+    ? `
+  .card-bg { fill: #1c1f26; }
+  .fade-end { stop-color: #1c1f26; }
+  .avatar-ring { stroke: #1c1f26; }
+  .name { fill: #e6e6e6; font-size: 20px; font-weight: 700; }
+  .bio { fill: #9ca3af; font-size: 13px; }
+  .num { fill: #e6e6e6; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .label { fill: #9ca3af; font-size: 12px; }
+  .line { stroke: rgba(255, 255, 255, 0.1); stroke-width: 1; }`
+    : `
+  .card-bg { fill: #ffffff; }
+  .fade-end { stop-color: #ffffff; }
+  .avatar-ring { stroke: #ffffff; }
+  .name { fill: #1f2328; font-size: 20px; font-weight: 700; }
+  .bio { fill: #6b7280; font-size: 13px; }
+  .num { fill: #1f2328; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .label { fill: #6b7280; font-size: 12px; }
+  .line { stroke: rgba(0, 0, 0, 0.08); stroke-width: 1; }`;
 
   const avatarBlock = avatarUri
     ? `<g clip-path="url(#avatarClip)"><image href="${escapeXmlAttr(avatarUri)}" x="22" y="67" width="76" height="76" preserveAspectRatio="xMidYMid slice" /></g>`
@@ -244,26 +251,10 @@ function renderCardSvg({ name, avatarUri, backgroundUri, bio, likeCount, followe
     : "";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${escapeXmlAttr(name)} - CCW 用户卡片">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${escapeXmlAttr(name)}">
 <style>
   text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif; }
-  .card-bg { fill: #ffffff; }
-  .fade-end { stop-color: #ffffff; }
-  .avatar-ring { stroke: #ffffff; }
-  .name { fill: #1f2328; font-size: 20px; font-weight: 700; }
-  .bio { fill: #6b7280; font-size: 13px; }
-  .num { fill: #1f2328; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .label { fill: #6b7280; font-size: 12px; }
-  .avatar-initial { fill: #ffffff; font-size: 30px; font-weight: 600; }
-  .line { stroke: rgba(0, 0, 0, 0.08); stroke-width: 1; }
-  @media (prefers-color-scheme: dark) {
-    .card-bg { fill: #1c1f26; }
-    .fade-end { stop-color: #1c1f26; }
-    .avatar-ring { stroke: #1c1f26; }
-    .name, .num { fill: #e6e6e6; }
-    .bio, .label { fill: #9ca3af; }
-    .line { stroke: rgba(255, 255, 255, 0.1); }
-  }
+  .avatar-initial { fill: #ffffff; font-size: 30px; font-weight: 600; }${themeStyle}
 </style>
 <defs>
   <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
@@ -275,7 +266,7 @@ function renderCardSvg({ name, avatarUri, backgroundUri, bio, likeCount, followe
     <stop offset="0" stop-color="#667eea" />
     <stop offset="1" stop-color="#764ba2" />
   </linearGradient>
-  <clipPath id="bannerClip"><rect x="0" y="0" width="${W}" height="130" rx="16" /></clipPath>
+  <clipPath id="bannerClip"><path d="M16 0 H${W - 16} Q${W} 0 ${W} 16 V130 H0 V16 Q0 0 16 0 Z" /></clipPath>
   <clipPath id="avatarClip"><circle cx="60" cy="105" r="38" /></clipPath>
   <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
     <feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#000000" flood-opacity="0.15" />
@@ -358,8 +349,9 @@ function renderHelp(origin) {
   <div class="box">
     <h1>CCW 用户卡片</h1>
     <p>在 URL 后添加 <code>?oid=用户oid</code> 即可获取用户卡片。</p>
+    <p>可选参数 <code>theme</code>：缺省或 <code>theme=dark</code> 为深色主题，<code>theme=light</code> 为浅色主题。</p>
     <p>例如：</p>
-    <span class="demo">${escapeHtml(`${origin}/?oid=63c2807d669fa967f17f5559`)}</span>
+    <span class="demo">${escapeHtml(`${origin}/?oid=63c2807d669fa967f17f5559&theme=light`)}</span>
   </div>
 </body>
 </html>`;
