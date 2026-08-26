@@ -65,7 +65,7 @@ export const cardCssLight = `
   .label { fill: #6b7280; font-size: 12px; }
   .line { stroke: rgba(0, 0, 0, 0.08); stroke-width: 1; }`;
 
-export function cardDefs(L = cardLayout, avatarShadowOpacity = 0.4) {
+export function cardDefs(L = cardLayout, avatarShadowOpacity = 0.4, avatarShadowColor = "#000000") {
   return `
   <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0" stop-color="#000000" stop-opacity="0.15" />
@@ -82,7 +82,7 @@ export function cardDefs(L = cardLayout, avatarShadowOpacity = 0.4) {
     <feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#000000" flood-opacity="0.15" />
   </filter>
   <filter id="avatarShadow" x="-30%" y="-30%" width="160%" height="160%">
-    <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#000000" flood-opacity="${avatarShadowOpacity}" />
+    <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="${avatarShadowColor}" flood-opacity="${avatarShadowOpacity}" />
   </filter>`;
 }
 
@@ -135,7 +135,8 @@ export function renderCardSvg({ name, avatarUri, backgroundUri, bio, likeCount, 
 
   const isDark = theme !== "light";
   const themeStyle = isDark ? cardCssDark : cardCssLight;
-  const avatarShadowOpacity = isDark ? 0.4 : 0.25;
+  const avatarShadowColor = isDark ? "#ffffff" : "#000000";
+  const avatarShadowOpacity = isDark ? 0.35 : 0.25;
 
   const avatarBlock = avatarUri
     ? `<g filter="url(#avatarShadow)"><g clip-path="url(#avatarClip)"><image href="${escapeXmlAttr(avatarUri)}" x="${avatar.imgX}" y="${avatar.imgY}" width="${avatar.imgSize}" height="${avatar.imgSize}" preserveAspectRatio="xMidYMid slice" /></g></g>`
@@ -150,7 +151,7 @@ export function renderCardSvg({ name, avatarUri, backgroundUri, bio, likeCount, 
   ${cardBaseCss}${themeStyle}
 </style>
 <defs>
-  ${cardDefs(cardLayout, avatarShadowOpacity)}
+  ${cardDefs(cardLayout, avatarShadowOpacity, avatarShadowColor)}
 </defs>
 <g filter="url(#shadow)">
   <rect class="card-bg" x="0" y="0" width="${W}" height="${H}" rx="${radius}" />
