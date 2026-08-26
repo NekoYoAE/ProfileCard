@@ -1,0 +1,176 @@
+export const cardLayout = {
+  width: 400,      // 卡片宽
+  height: 265,     // 卡片高
+  radius: 16,      // 卡片圆角
+  bannerH: 130,    // 顶部横幅高
+
+  avatar: {
+    cx: 60,        // 头像圆心X
+    cy: 133,       // 头像圆心Y
+    r: 38,         // 头像半径
+    imgX: 22,      // 头像图片X
+    imgY: 95,      // 头像图片Y
+    imgSize: 76,   // 头像图片边长
+    initialY: 144, // 无头像时显示首字母的Y
+  },
+
+  name: {
+    x: 110,        // 用户名X
+    y: 140,        // 用户名Y
+    maxWidth: 274, // 最大宽度，超出显示省略号
+    fontSize: 20,  // 字号（需与样式 .name 的 font-size 一致）
+  },
+
+  bio: {
+    x: 110,        // 个人介绍X
+    y: 162,        // 个人介绍Y
+    maxWidth: 274,
+    fontSize: 13,
+  },
+
+  stats: {
+    lineX1: 20,      // 水平分割线起点X
+    lineX2: 380,     // 水平分割线终点X
+    lineY: 200,      // 水平分割线Y
+    sepX: [140, 260], // 两列竖线X
+    sepY1: 206,      // 竖线顶部Y
+    lineBottom: 250, // 竖线底部Y
+    colX: [80, 200, 320], // 获赞 / 粉丝 / 信誉分 三列中心 X
+    numY: 228,       // 统计数字Y
+    labelY: 246,     // 统计文字标签Y
+  },
+};
+
+export const cardBaseCss = `
+  text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif; }
+  .avatar-initial { fill: #ffffff; font-size: 30px; font-weight: 600; }`;
+
+// 深色主题样式
+export const cardCssDark = `
+  .card-bg { fill: #1c1f26; }
+  .fade-end { stop-color: #1c1f26; }
+  .name { fill: #e6e6e6; font-size: 20px; font-weight: 700; }
+  .bio { fill: #9ca3af; font-size: 13px; }
+  .num { fill: #e6e6e6; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .label { fill: #9ca3af; font-size: 12px; }
+  .line { stroke: rgba(255, 255, 255, 0.1); stroke-width: 1; }`;
+
+// 浅色主题样式
+export const cardCssLight = `
+  .card-bg { fill: #ffffff; }
+  .fade-end { stop-color: #ffffff; }
+  .name { fill: #1f2328; font-size: 20px; font-weight: 700; }
+  .bio { fill: #6b7280; font-size: 13px; }
+  .num { fill: #1f2328; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .label { fill: #6b7280; font-size: 12px; }
+  .line { stroke: rgba(0, 0, 0, 0.08); stroke-width: 1; }`;
+
+export function cardDefs(L = cardLayout, avatarShadowOpacity = 0.4) {
+  return `
+  <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#000000" stop-opacity="0.15" />
+    <stop offset="0.45" stop-color="#000000" stop-opacity="0" />
+    <stop offset="1" class="fade-end" stop-color="#ffffff" />
+  </linearGradient>
+  <linearGradient id="fallbackBg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#667eea" />
+    <stop offset="1" stop-color="#764ba2" />
+  </linearGradient>
+  <clipPath id="bannerClip"><path d="M16 0 H${L.width - 16} Q${L.width} 0 ${L.width} 16 V${L.bannerH} H0 V16 Q0 0 16 0 Z" /></clipPath>
+  <clipPath id="avatarClip"><circle cx="${L.avatar.cx}" cy="${L.avatar.cy}" r="${L.avatar.r}" /></clipPath>
+  <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+    <feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#000000" flood-opacity="0.15" />
+  </filter>
+  <filter id="avatarShadow" x="-30%" y="-30%" width="160%" height="160%">
+    <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#000000" flood-opacity="${avatarShadowOpacity}" />
+  </filter>`;
+}
+
+function fmt(n) {
+  n = Number(n) || 0;
+  if (n >= 10000) return (n / 10000).toFixed(1).replace(/\.0$/, "") + "w";
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
+  return String(n);
+}
+
+function escapeXml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function escapeXmlAttr(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function textWidth(s, fontSize) {
+  let units = 0;
+  for (const ch of String(s)) {
+    units += /[\u2E80-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF\u3000-\u303F]/.test(ch) ? 1 : 0.55;
+  }
+  return units * fontSize;
+}
+
+function truncate(s, maxWidth, fontSize) {
+  s = String(s);
+  if (textWidth(s, fontSize) <= maxWidth) return s;
+  let out = "";
+  for (const ch of s) {
+    if (textWidth(out + ch + "…", fontSize) > maxWidth) break;
+    out += ch;
+  }
+  return out + "…";
+}
+
+export function renderCardSvg({ name, avatarUri, backgroundUri, bio, likeCount, followerCount, reputationScore }, theme = "dark") {
+  const { width: W, height: H, radius, bannerH, avatar, name: nameL, bio: bioL, stats } = cardLayout;
+  const safeName = truncate(name || "未知用户", nameL.maxWidth, nameL.fontSize);
+  const safeBio = truncate(bio || "", bioL.maxWidth, bioL.fontSize);
+
+  const isDark = theme !== "light";
+  const themeStyle = isDark ? cardCssDark : cardCssLight;
+  const avatarShadowOpacity = isDark ? 0.4 : 0.25;
+
+  const avatarBlock = avatarUri
+    ? `<g filter="url(#avatarShadow)"><g clip-path="url(#avatarClip)"><image href="${escapeXmlAttr(avatarUri)}" x="${avatar.imgX}" y="${avatar.imgY}" width="${avatar.imgSize}" height="${avatar.imgSize}" preserveAspectRatio="xMidYMid slice" /></g></g>`
+    : `<g filter="url(#avatarShadow)"><circle cx="${avatar.cx}" cy="${avatar.cy}" r="${avatar.r}" fill="url(#fallbackBg)" /></g><text class="avatar-initial" x="${avatar.cx}" y="${avatar.initialY}" text-anchor="middle">${escapeXml(String(name || "?").charAt(0))}</text>`;
+  const bioBlock = safeBio
+    ? `<text class="bio" x="${bioL.x}" y="${bioL.y}">${escapeXml(safeBio)}</text>`
+    : "";
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${escapeXmlAttr(name)}">
+<style>
+  ${cardBaseCss}${themeStyle}
+</style>
+<defs>
+  ${cardDefs(cardLayout, avatarShadowOpacity)}
+</defs>
+<g filter="url(#shadow)">
+  <rect class="card-bg" x="0" y="0" width="${W}" height="${H}" rx="${radius}" />
+  <g clip-path="url(#bannerClip)">
+    <rect x="0" y="0" width="${W}" height="${bannerH}" fill="url(#fallbackBg)" />
+    ${backgroundUri ? `<image href="${escapeXmlAttr(backgroundUri)}" x="0" y="0" width="${W}" height="${bannerH}" preserveAspectRatio="xMidYMid slice" />` : ""}
+    <rect x="0" y="0" width="${W}" height="${bannerH}" fill="url(#fade)" />
+  </g>
+  ${avatarBlock}
+  <text class="name" x="${nameL.x}" y="${nameL.y}">${escapeXml(safeName)}</text>
+  ${bioBlock}
+  <line class="line" x1="${stats.lineX1}" y1="${stats.lineY}" x2="${stats.lineX2}" y2="${stats.lineY}" />
+  <line class="line" x1="${stats.sepX[0]}" y1="${stats.sepY1}" x2="${stats.sepX[0]}" y2="${stats.lineBottom}" />
+  <line class="line" x1="${stats.sepX[1]}" y1="${stats.sepY1}" x2="${stats.sepX[1]}" y2="${stats.lineBottom}" />
+  <text class="num" x="${stats.colX[0]}" y="${stats.numY}" text-anchor="middle">${escapeXml(fmt(likeCount))}</text>
+  <text class="label" x="${stats.colX[0]}" y="${stats.labelY}" text-anchor="middle">获赞</text>
+  <text class="num" x="${stats.colX[1]}" y="${stats.numY}" text-anchor="middle">${escapeXml(fmt(followerCount))}</text>
+  <text class="label" x="${stats.colX[1]}" y="${stats.labelY}" text-anchor="middle">粉丝</text>
+  <text class="num" x="${stats.colX[2]}" y="${stats.numY}" text-anchor="middle">${reputationScore == null ? "--" : escapeXml(fmt(reputationScore))}</text>
+  <text class="label" x="${stats.colX[2]}" y="${stats.labelY}" text-anchor="middle">信誉分</text>
+</g>
+</svg>`;
+}
