@@ -15,7 +15,7 @@
 
 const API_BASE = "https://community-web.ccw.site";
 const OID_RE = /^[0-9a-fA-F]{24}$/;
-const CACHE_TTL = 10 * 60; // 秒，卡片缓存 10 分钟（缩短，避免部署后旧版残留过久）
+const CACHE_TTL = 1 * 60;
 
 export default {
   async fetch(request, env, ctx) {

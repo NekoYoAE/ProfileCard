@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "deploy": "wrangler deploy",
+    "push": "powershell -ExecutionPolicy Bypass -File deploy.ps1",
     "dev": "wrangler dev",
     "start": "wrangler dev",
     "cf-typegen": "wrangler types"
