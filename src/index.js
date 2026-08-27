@@ -66,7 +66,7 @@ export default {
         const user = cardRes?.body?.user;
         if (!user) return { user: null, avatarImg: null };
         const avatarImg = user.avatar
-          ? await fetchImageData(user.avatar, 600 * 1024, { width: 160, height: 160, fit: "cover", format: "jpeg", quality: 80 })
+          ? await fetchImageData(user.avatar, 600 * 1024, { width: 160, height: 160, fit: "cover", format: "jpeg", quality: 80 }).catch(() => null)
           : null;
         return { user, avatarImg };
       });
@@ -125,33 +125,26 @@ async function postJson(url, body, timeoutMs = 6000) {
 }
 
 async function fetchImageData(url, maxBytes = 1024 * 1024, resizeOpts = null) {
-  const original = await fetchAsDataUri(url);
+  const original = await fetchAsDataUri(url).catch(() => null);
   if (!original) return null;
 
   const isGif = original.dataUri.startsWith("data:image/gif");
   const isWebp = original.dataUri.startsWith("data:image/webp");
 
   if (isGif || isWebp) {
-    if (original.bytes <= maxBytes) return original;
-    if (isGif && resizeOpts) {
-      try {
-        const resized = await fetchAsDataUri(
-          ossResizeUrl(url, resizeOpts.width, resizeOpts.height, 0, "gif", "m_lfit")
-        );
-        if (resized && resized.bytes <= maxBytes) return resized;
-      } catch {}
-    }
+    if (!resizeOpts) return original;
+    const resized = fetchAsDataUri(
+      ossResizeUrl(url, resizeOpts.width, resizeOpts.height, 0, "", "m_lfit")
+    ).catch(() => null);
+    return (await pickSmallest([original, resized], maxBytes)) || original;
   }
 
-  const attempts = [original];
   if (resizeOpts) {
-    attempts.push(
-      fetchAsDataUri(ossResizeUrl(url, resizeOpts.width, resizeOpts.height, resizeOpts.quality))
-    );
-  }
-  const hit = await firstImageMatch(attempts, maxBytes);
-  if (hit) return hit;
-  if (resizeOpts) {
+    const resized = fetchAsDataUri(
+      ossResizeUrl(url, resizeOpts.width, resizeOpts.height, resizeOpts.quality)
+    ).catch(() => null);
+    const hit = await pickSmallest([original, resized], maxBytes);
+    if (hit) return hit;
     try {
       const cf = await fetchAsDataUri(url, {
         cf: {
@@ -166,26 +159,21 @@ async function fetchImageData(url, maxBytes = 1024 * 1024, resizeOpts = null) {
       });
       if (cf && cf.bytes <= maxBytes) return cf;
     } catch {}
+    return null;
   }
 
-  return null;
+  return original;
 }
 
-function firstImageMatch(attempts, maxBytes) {
-  return new Promise((resolve) => {
-    let pending = attempts.length;
-    if (pending === 0) return resolve(null);
-    attempts.forEach((p) => {
-      Promise.resolve(p).then(
-        (v) => {
-          if (v && v.bytes <= maxBytes) return resolve(v);
-          if (--pending === 0) resolve(null);
-        },
-        () => {
-          if (--pending === 0) resolve(null);
-        }
-      );
-    });
+function pickSmallest(attempts, maxBytes) {
+  return Promise.allSettled(attempts).then((settled) => {
+    let best = null;
+    for (const s of settled) {
+      const v = s.status === "fulfilled" ? s.value : null;
+      if (!v || v.bytes > maxBytes) continue;
+      if (!best || v.bytes < best.bytes) best = v;
+    }
+    return best;
   });
 }
 
@@ -193,7 +181,8 @@ function ossResizeUrl(url, width, height, quality, format = "jpg", fit = "m_fill
   const sep = url.includes("?") ? "&" : "?";
   const hPart = height ? `,h_${height}` : "";
   const qPart = quality ? `/quality,q_${quality}` : "";
-  return `${url}${sep}x-oss-process=image/resize,w_${width}${hPart},${fit}/format,${format}${qPart}`;
+  const fmtPart = format ? `/format,${format}` : "";
+  return `${url}${sep}x-oss-process=image/resize,w_${width}${hPart},${fit}${fmtPart}${qPart}`;
 }
 
 async function fetchWithTimeout(url, opts = {}, ms = 10000) {
@@ -215,16 +204,25 @@ function detectImageType(b64) {
 }
 
 async function fetchAsDataUri(url, fetchOpts = {}, timeoutMs = 8000) {
-  const res = await fetchWithTimeout(url, fetchOpts, timeoutMs);
+  let res;
+  try {
+    res = await fetchWithTimeout(url, fetchOpts, timeoutMs);
+  } catch {
+    return null;
+  }
   if (!res.ok) return null;
-  const ct = res.headers.get("content-type") || "image/jpeg";
-  const buf = await res.arrayBuffer();
-  const b64 = arrayBufferToBase64(buf);
-  return {
-    dataUri: `data:${detectImageType(b64)};base64,${b64}`,
-    bytes: buf.byteLength,
-    contentType: ct,
-  };
+  try {
+    const ct = res.headers.get("content-type") || "image/jpeg";
+    const buf = await res.arrayBuffer();
+    const b64 = arrayBufferToBase64(buf);
+    return {
+      dataUri: `data:${detectImageType(b64)};base64,${b64}`,
+      bytes: buf.byteLength,
+      contentType: ct,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function arrayBufferToBase64(buf) {
