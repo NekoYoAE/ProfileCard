@@ -8,7 +8,7 @@ const themes = {
     "--label": "#9ca3af",
     "--line": "rgba(255,255,255,0.1)",
     "--avatar-initial": "#ffffff",
-    "--shadow-color": "#ffffff",
+    "--shadow-color": "#000000",
     "--shadow-opacity": "0.35",
   },
   light: {
@@ -20,7 +20,7 @@ const themes = {
     "--label": "#6b7280",
     "--line": "rgba(0,0,0,0.08)",
     "--avatar-initial": "#1f2328",
-    "--shadow-color": "#000000",
+    "--shadow-color": "#ffffff",
     "--shadow-opacity": "0.25",
   },
 };

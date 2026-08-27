@@ -10,7 +10,7 @@
       --label: #9ca3af;
       --line: rgba(255,255,255,0.1);
       --avatar-initial: #ffffff;
-      --shadow-color: #ffffff;
+      --shadow-color: #000000;
       --shadow-opacity: 0.35;
     }
     text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif; }
@@ -24,7 +24,7 @@
     .avatar-initial { fill: var(--avatar-initial); font-size: 30px; font-weight: 600; }
     .avatar-shadow { flood-color: var(--shadow-color); flood-opacity: var(--shadow-opacity); }
     @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
-    @keyframes avatarIn { from { opacity: 0; transform: translateY(18px) scale(0.7); } to { opacity: 1; transform: none; } }
+    @keyframes avatarIn { from { opacity: 0; transform: translateY(18px) scale(0.5); } to { opacity: 1; transform: none; } }
     @keyframes bgReveal { from { opacity: 0; transform: translateY(16px) scale(1.2); } to { opacity: 1; transform: translateY(0) scale(1); } }
     .anim { animation: fadeUp 0.7s cubic-bezier(0.22, 0.9, 0.36, 1) both; }
     .anim-avatar { transform-box: fill-box; transform-origin: 50% 50%; animation: avatarIn 0.7s cubic-bezier(0.22, 0.9, 0.36, 1) both; }
@@ -52,7 +52,7 @@
       <feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#000000" flood-opacity="0.15" />
     </filter>
     <filter id="avatarShadow" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow class="avatar-shadow" dx="0" dy="0" stdDeviation="10" />
+      <feDropShadow class="avatar-shadow" dx="0" dy="0" stdDeviation="8" />
     </filter>
   </defs>
   <g filter="url(#shadow)">
