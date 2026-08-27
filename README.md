@@ -28,7 +28,7 @@
 
 ![卡片样式1](https://profilecard.seia0070.dpdns.org/?oid=5d47fec31c94e579b89cd259&card=2)
 
-## 附加
-卡片样式1因需获取用户头像及背景图，加载速度慢
+---
+服务基于 Cloudflare Worker ，加载速度慢是正常情况
 ---
 [项目灵感来源](https://github.com/YearnstudioYangyi/scratch-readme-stats/)
