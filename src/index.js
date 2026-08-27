@@ -125,9 +125,9 @@ async function postJson(url, body, timeoutMs = 6000) {
 }
 
 async function fetchImageData(url, maxBytes = 1024 * 1024, resizeOpts = null) {
-  const meta = await probeGif(url);
+  const meta = await probeImage(url);
 
-  if (meta?.type === "gif") {
+  if (meta?.type === "gif" || meta?.type === "webp") {
     if (!meta.width || meta.width <= (resizeOpts?.width || 0)) {
       const original = await fetchAsDataUri(url).catch(() => null);
       if (original && original.bytes <= maxBytes) return original;
@@ -138,6 +138,46 @@ async function fetchImageData(url, maxBytes = 1024 * 1024, resizeOpts = null) {
       ).catch(() => null);
       if (resized && resized.bytes <= maxBytes) return resized;
     }
+    return null;
+  }
+
+  if (meta?.type === "static") {
+    if (!resizeOpts) {
+      const original = await fetchAsDataUri(url).catch(() => null);
+      return original && original.bytes <= maxBytes ? original : null;
+    }
+    const needResize = meta.width ? meta.width > resizeOpts.width : true;
+    if (!needResize) {
+      const original = await fetchAsDataUri(url).catch(() => null);
+      if (original && original.bytes <= maxBytes) return original;
+      if (resizeOpts) {
+        const resized = await fetchAsDataUri(
+          ossResizeUrl(url, resizeOpts.width, resizeOpts.height, resizeOpts.quality)
+        ).catch(() => null);
+        if (resized && resized.bytes <= maxBytes) return resized;
+      }
+      return null;
+    }
+    const resized = await fetchAsDataUri(
+      ossResizeUrl(url, resizeOpts.width, resizeOpts.height, resizeOpts.quality)
+    ).catch(() => null);
+    if (resized && resized.bytes <= maxBytes) return resized;
+    try {
+      const cf = await fetchAsDataUri(url, {
+        cf: {
+          image: {
+            width: resizeOpts.width,
+            height: resizeOpts.height,
+            fit: "cover",
+            format: "jpeg",
+            quality: resizeOpts.quality,
+          },
+        },
+      });
+      if (cf && cf.bytes <= maxBytes) return cf;
+    } catch {}
+    const original = await fetchAsDataUri(url).catch(() => null);
+    if (original && original.bytes <= maxBytes) return original;
     return null;
   }
 
@@ -181,10 +221,10 @@ async function fetchImageData(url, maxBytes = 1024 * 1024, resizeOpts = null) {
   return original;
 }
 
-async function probeGif(url) {
+async function probeImage(url) {
   let res;
   try {
-    res = await fetchWithTimeout(url, { headers: { range: "bytes=0-9" } }, 4000);
+    res = await fetchWithTimeout(url, { headers: { range: "bytes=0-511" } }, 4000);
   } catch {
     return null;
   }
@@ -192,15 +232,79 @@ async function probeGif(url) {
     if (res.body) await res.body.cancel().catch(() => {});
     return null;
   }
-  const buf = new Uint8Array(await res.arrayBuffer());
-  if (buf.length >= 10 && buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) {
-    return {
-      type: "gif",
-      width: buf[6] | (buf[7] << 8),
-      height: buf[8] | (buf[9] << 8),
-    };
+  let buf;
+  try {
+    buf = new Uint8Array(await res.arrayBuffer());
+  } catch {
+    return null;
   }
-  return { type: "other" };
+  if (buf.length < 4) return null;
+  try {
+    if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) {
+      return buf.length >= 10
+        ? { type: "gif", width: buf[6] | (buf[7] << 8), height: buf[8] | (buf[9] << 8) }
+        : { type: "gif" };
+    }
+    if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
+      return buf.length >= 24
+        ? {
+            type: "static",
+            width: (buf[16] << 24) | (buf[17] << 16) | (buf[18] << 8) | buf[19],
+            height: (buf[20] << 24) | (buf[21] << 16) | (buf[22] << 8) | buf[23],
+          }
+        : { type: "static" };
+    }
+    if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) {
+      if (buf[15] === 0x58 && buf.length >= 30) {
+        return {
+          type: "webp",
+          width: 1 + (buf[24] | (buf[25] << 8) | (buf[26] << 16)),
+          height: 1 + (buf[27] | (buf[28] << 8) | (buf[29] << 16)),
+        };
+      }
+      if (buf[15] === 0x20 && buf.length >= 27) {
+        return { type: "webp", width: buf[23] | (buf[24] << 8), height: buf[25] | (buf[26] << 8) };
+      }
+      if (buf[15] === 0x4c && buf.length >= 25) {
+        const b0 = buf[21], b1 = buf[22], b2 = buf[23], b3 = buf[24];
+        return {
+          type: "webp",
+          width: 1 + (b0 | ((b1 & 0x3f) << 8)),
+          height: 1 + ((b1 >> 6) | (b2 << 2) | ((b3 & 0x0f) << 10)),
+        };
+      }
+      return { type: "webp" };
+    }
+    if (buf[0] === 0xff && buf[1] === 0xd8) {
+      const size = parseJpegSize(buf);
+      return size ? { type: "static", ...size } : { type: "static" };
+    }
+    return { type: "static" };
+  } catch {
+    return null;
+  }
+}
+
+function parseJpegSize(buf) {
+  let i = 2;
+  while (i + 9 < buf.length) {
+    if (buf[i] !== 0xff) { i++; continue; }
+    const marker = buf[i + 1];
+    if (marker === 0xff) { i++; continue; }
+    if (marker === 0xd8 || marker === 0xd9) { i += 2; continue; }
+    if (marker >= 0xd0 && marker <= 0xd7) { i += 2; continue; }
+    if (marker === 0x01) { i += 2; continue; }
+    const len = (buf[i + 2] << 8) | buf[i + 3];
+    if (len < 2) return null;
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      return {
+        width: (buf[i + 7] << 8) | buf[i + 8],
+        height: (buf[i + 5] << 8) | buf[i + 6],
+      };
+    }
+    i += 2 + len;
+  }
+  return null;
 }
 
 function pickSmallest(attempts, maxBytes) {
@@ -241,7 +345,7 @@ function detectImageType(b64) {
   return "image/jpeg";
 }
 
-async function fetchAsDataUri(url, fetchOpts = {}, timeoutMs = 8000) {
+async function fetchAsDataUri(url, fetchOpts = {}, timeoutMs = 5000) {
   let res;
   try {
     res = await fetchWithTimeout(url, fetchOpts, timeoutMs);
