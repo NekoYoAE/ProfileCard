@@ -106,7 +106,7 @@ export default {
       };
 
       return svg(renderCardSvg(template, data, theme, { animation }), {
-        "cache-control": "no-store",
+        "cache-control": "public, max-age=60",
       });
     } catch (err) {
       console.error(err);
@@ -125,6 +125,22 @@ async function postJson(url, body, timeoutMs = 6000) {
 }
 
 async function fetchImageData(url, maxBytes = 1024 * 1024, resizeOpts = null) {
+  const meta = await probeGif(url);
+
+  if (meta?.type === "gif") {
+    if (!meta.width || meta.width <= (resizeOpts?.width || 0)) {
+      const original = await fetchAsDataUri(url).catch(() => null);
+      if (original && original.bytes <= maxBytes) return original;
+    }
+    if (resizeOpts) {
+      const resized = await fetchAsDataUri(
+        ossResizeUrl(url, resizeOpts.width, resizeOpts.height, 0, "", "m_lfit")
+      ).catch(() => null);
+      if (resized && resized.bytes <= maxBytes) return resized;
+    }
+    return null;
+  }
+
   const original = await fetchAsDataUri(url).catch(() => null);
   if (!original) return null;
 
@@ -163,6 +179,28 @@ async function fetchImageData(url, maxBytes = 1024 * 1024, resizeOpts = null) {
   }
 
   return original;
+}
+
+async function probeGif(url) {
+  let res;
+  try {
+    res = await fetchWithTimeout(url, { headers: { range: "bytes=0-9" } }, 4000);
+  } catch {
+    return null;
+  }
+  if (!res.ok || res.status !== 206) {
+    if (res.body) await res.body.cancel().catch(() => {});
+    return null;
+  }
+  const buf = new Uint8Array(await res.arrayBuffer());
+  if (buf.length >= 10 && buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) {
+    return {
+      type: "gif",
+      width: buf[6] | (buf[7] << 8),
+      height: buf[8] | (buf[9] << 8),
+    };
+  }
+  return { type: "other" };
 }
 
 function pickSmallest(attempts, maxBytes) {
