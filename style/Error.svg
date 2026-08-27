@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 90" width="260" height="90" role="img" aria-label="出错了">
+  <style>
+    svg {
+      --card-bg: #1c1f26;
+      --name: #e6e6e6;
+      --bio: #9ca3af;
+    }
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif; }
+    .bg { fill: var(--card-bg); }
+    .title { fill: var(--name); font-size: 16px; font-weight: 700; }
+    .desc { fill: var(--bio); font-size: 12px; }
+  </style>
+  <rect class="bg" x="0" y="0" width="260" height="90" rx="14" />
+  <text class="title" x="20" y="38">{{title}}</text>
+  <text class="desc" x="20" y="60">{{message}}</text>
+</svg>

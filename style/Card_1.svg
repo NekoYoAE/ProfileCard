@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 265" width="400" height="265" role="img" aria-label="{{nameAttr}}">
+  <style>
+    svg {
+      --card-bg: #1c1f26;
+      --fade-end: #1c1f26;
+      --name: #e6e6e6;
+      --bio: #9ca3af;
+      --num: #e6e6e6;
+      --label: #9ca3af;
+      --line: rgba(255,255,255,0.1);
+      --avatar-initial: #ffffff;
+      --shadow-color: #ffffff;
+      --shadow-opacity: 0.35;
+    }
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif; }
+    .card-bg { fill: var(--card-bg); }
+    .fade-end { stop-color: var(--fade-end); }
+    .name { fill: var(--name); font-size: 20px; font-weight: 700; }
+    .bio { fill: var(--bio); font-size: 13px; }
+    .num { fill: var(--num); font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .label { fill: var(--label); font-size: 12px; }
+    .line { stroke: var(--line); stroke-width: 1; }
+    .avatar-initial { fill: var(--avatar-initial); font-size: 30px; font-weight: 600; }
+    .avatar-shadow { flood-color: var(--shadow-color); flood-opacity: var(--shadow-opacity); }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+    @keyframes avatarIn { from { opacity: 0; transform: translateY(18px) scale(0.7); } to { opacity: 1; transform: none; } }
+    @keyframes bgReveal { from { opacity: 0; transform: translateY(16px) scale(1.2); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    .anim { animation: fadeUp 0.7s cubic-bezier(0.22, 0.9, 0.36, 1) both; }
+    .anim-avatar { transform-box: fill-box; transform-origin: 50% 50%; animation: avatarIn 0.7s cubic-bezier(0.22, 0.9, 0.36, 1) both; }
+    .bg-img { transform-box: fill-box; transform-origin: 50% 50%; animation: bgReveal 1s cubic-bezier(0.22, 0.9, 0.36, 1) 0.05s both; }
+    .d0 { animation-delay: 0s; }
+    .d1 { animation-delay: 0.08s; }
+    .d2 { animation-delay: 0.16s; }
+    .d3 { animation-delay: 0.24s; }
+    .d4 { animation-delay: 0.32s; }
+    @media (prefers-reduced-motion: reduce) { .anim, .anim-avatar, .bg-img { animation: none; } }
+  </style>
+  <defs>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#000000" stop-opacity="0.15" />
+      <stop offset="0.45" stop-color="#000000" stop-opacity="0" />
+      <stop offset="1" class="fade-end" stop-color="#ffffff" />
+    </linearGradient>
+    <linearGradient id="fallbackBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#667eea" />
+      <stop offset="1" stop-color="#764ba2" />
+    </linearGradient>
+    <clipPath id="bannerClip"><path d="M16 0 H384 Q400 0 400 16 V130 H0 V16 Q0 0 16 0 Z" /></clipPath>
+    <clipPath id="avatarClip"><circle cx="60" cy="133" r="38" /></clipPath>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#000000" flood-opacity="0.15" />
+    </filter>
+    <filter id="avatarShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow class="avatar-shadow" dx="0" dy="0" stdDeviation="10" />
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <rect class="card-bg" x="0" y="0" width="400" height="265" rx="16" />
+    <g class="anim d0" clip-path="url(#bannerClip)">
+      <rect class="card-bg" x="0" y="0" width="400" height="130" />
+      {{background}}
+      <rect x="0" y="0" width="400" height="130" fill="url(#fade)" />
+    </g>
+    {{avatar}}
+    <text class="name anim d2" x="118" y="140">{{name}}</text>
+    <text class="bio anim d3" x="118" y="162">{{bio}}</text>
+    <line class="line anim d3" x1="20" y1="200" x2="380" y2="200" />
+    <line class="line anim d3" x1="140" y1="206" x2="140" y2="250" />
+    <line class="line anim d3" x1="260" y1="206" x2="260" y2="250" />
+    <text class="num anim d4" x="80" y="228" text-anchor="middle">{{likes}}</text>
+    <text class="label anim d4" x="80" y="246" text-anchor="middle">获赞</text>
+    <text class="num anim d4" x="200" y="228" text-anchor="middle">{{followers}}</text>
+    <text class="label anim d4" x="200" y="246" text-anchor="middle">粉丝</text>
+    <text class="num anim d4" x="320" y="228" text-anchor="middle">{{score}}</text>
+    <text class="label anim d4" x="320" y="246" text-anchor="middle">信誉分</text>
+  </g>
+</svg>

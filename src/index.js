@@ -1,12 +1,34 @@
-import { renderCardSvg as renderCard1 } from "../style/Card_1.js";
-import { renderErrorSvg } from "../style/Error.js";
-// import { renderCardSvg as renderCard2 } from "../style/Card_2.js";
+import { renderCardSvg } from "./render.js";
+import { themeValues } from "./theme.js";
 
-// card参数
 const cardStyles = {
-  1: renderCard1,
-  // 2: renderCard2,
+  1: "Card_1.svg",
+  // 2: "Card_2.svg",
+  error: "Error.svg",
 };
+
+const templateCache = new Map();
+
+async function getCardTemplate(card, env) {
+  const file = cardStyles[card] || cardStyles[1];
+  if (!templateCache.has(file)) {
+    const res = await env.ASSETS.fetch(new URL(`/${file}`, "https://assets.local/"));
+    if (!res.ok) throw new Error(`Failed to load card template: ${file}`);
+    templateCache.set(file, await res.text());
+  }
+  return templateCache.get(file);
+}
+
+async function renderError(env, theme, title = "出错了", message = "无法加载数据，请稍后重试", opts = {}) {
+  try {
+    const tpl = await getCardTemplate("error", env);
+    return renderCardSvg(tpl, { title, message }, theme, opts);
+  } catch (err) {
+    console.error("Failed to load Error.svg", err);
+    const v = themeValues(theme);
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 90" width="260" height="90" role="img" aria-label="出错了"><rect width="260" height="90" rx="14" fill="${v["--card-bg"]}"/><text x="20" y="38" font-family="sans-serif" font-size="16" font-weight="700" fill="${v["--name"]}">出错了</text><text x="20" y="60" font-family="sans-serif" font-size="12" fill="${v["--bio"]}">无法加载数据，请稍后重试</text></svg>`;
+  }
+}
 
 const API_BASE = "https://community-web.ccw.site";
 const OID_RE = /^[0-9a-fA-F]{24}$/;
@@ -22,17 +44,18 @@ export default {
     const oid = (url.searchParams.get("oid") || "").trim();
     const theme = (url.searchParams.get("theme") || "dark").toLowerCase() === "light" ? "light" : "dark";
     const card = Number(url.searchParams.get("card")) || 1;
-    const renderCard = cardStyles[card] || renderCard1;
+    const animation = String(url.searchParams.get("animation") ?? "1") !== "0";
 
     if (!oid) {
-      return svg(renderErrorSvg(theme), { "cache-control": "no-store" }, 400);
+      return svg(await renderError(env, theme, "参数错误", "缺少oid", { animation }), { "cache-control": "no-store" }, 400);
     }
 
     if (!OID_RE.test(oid)) {
-      return svg(renderErrorSvg(theme), { "cache-control": "no-store" }, 400);
+      return svg(await renderError(env, theme, "参数错误", "无效的oid", { animation }), { "cache-control": "no-store" }, 400);
     }
 
     try {
+      const template = await getCardTemplate(card, env);
 
       const cardTask = postJson(`${API_BASE}/user-card/detail`, { oid }).then(async (cardRes) => {
         const user = cardRes?.body?.user;
@@ -56,12 +79,12 @@ export default {
       try {
         cardResult = await cardTask;
       } catch {
-        return svg(renderErrorSvg(theme), { "cache-control": "no-store" }, 502);
+        return svg(await renderError(env, theme, "数据获取失败，请稍后重试", { animation }), { "cache-control": "no-store" }, 502);
       }
 
       const { user, avatarImg } = cardResult;
       if (!user) {
-        return svg(renderErrorSvg(theme), { "cache-control": "no-store" }, 404);
+        return svg(await renderError(env, theme, "用户不存在", "未找到该用户", { animation }), { "cache-control": "no-store" }, 404);
       }
 
       const bgImg = await bgTask;
@@ -77,12 +100,12 @@ export default {
         reputationScore: user.reputationScore?.score ?? null,
       };
 
-      return svg(renderCard(data, theme), {
+      return svg(renderCardSvg(template, data, theme, { animation }), {
         "cache-control": "no-store",
       });
     } catch (err) {
       console.error(err);
-      return svg(renderErrorSvg(theme), { "cache-control": "no-store" }, 502);
+      return svg(await renderError(env, theme,"数据获取失败，请稍后重试", { animation }), { "cache-control": "no-store" }, 502);
     }
   },
 };
