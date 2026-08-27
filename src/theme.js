@@ -10,6 +10,7 @@ const themes = {
     "--avatar-initial": "#ffffff",
     "--shadow-color": "#000000",
     "--shadow-opacity": "0.35",
+    "--accent": "#8b9cf7",
   },
   light: {
     "--card-bg": "#ffffff",
@@ -22,6 +23,7 @@ const themes = {
     "--avatar-initial": "#1f2328",
     "--shadow-color": "#ffffff",
     "--shadow-opacity": "0.25",
+    "--accent": "#5b6bd6",
   },
 };
 
@@ -45,7 +47,7 @@ export function applyTheme(svg, theme = "dark", opts = {}) {
   if (typeof svg !== "string") return svg;
   let css = themeCss(theme);
   if (opts.animation === false) {
-    css += `svg .anim,svg .anim-avatar,svg .bg-img{animation:none!important}`;
+    css += `svg .anim,svg .anim-avatar,svg .bg-img,svg .ring-progress{animation:none!important}`;
   }
   return svg.replace("</style>", `${css}</style>`);
 }

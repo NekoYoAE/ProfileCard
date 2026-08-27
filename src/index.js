@@ -3,7 +3,7 @@ import { themeValues } from "./theme.js";
 
 const cardStyles = {
   1: "Card_1.svg",
-  // 2: "Card_2.svg",
+  2: "Card_2.svg",
   error: "Error.svg",
 };
 

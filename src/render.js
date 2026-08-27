@@ -6,6 +6,31 @@ const DEFAULT_NAME_FS = 20;
 const DEFAULT_BIO_MAX = 274;
 const DEFAULT_BIO_FS = 13;
 
+const RANK_CIRCUM = 276.5;
+const RANK_BANDS = [
+  { rank: "C", min: 0 },
+  { rank: "B", min: 500 },
+  { rank: "A", min: 2000 },
+  { rank: "S", min: 5000 },
+  { rank: "S+", min: 10000 },
+];
+
+function rankInfo(likeCount, followerCount) {
+  const total = (Number(likeCount) || 0) + (Number(followerCount) || 0);
+  let idx = 0;
+  for (let i = 0; i < RANK_BANDS.length; i++) {
+    if (total < RANK_BANDS[i].min) break;
+    idx = i;
+  }
+  const band = RANK_BANDS[idx];
+  const next = RANK_BANDS[Math.min(idx + 1, RANK_BANDS.length - 1)];
+  const progress =
+    idx === RANK_BANDS.length - 1
+      ? 100
+      : Math.min(100, ((total - band.min) / (next.min - band.min)) * 100);
+  return { rank: band.rank, progress };
+}
+
 const formatters = {
   name: (data, args) =>
     escapeXml(truncate(String(data.name ?? ""), num(args[0], DEFAULT_NAME_MAX), num(args[1], DEFAULT_NAME_FS))),
@@ -18,6 +43,11 @@ const formatters = {
   likes: (data) => escapeXml(fmt(data.likeCount)),
   followers: (data) => escapeXml(fmt(data.followerCount)),
   score: (data) => (data.reputationScore == null ? "--" : escapeXml(fmt(data.reputationScore))),
+  rank: (data) => escapeXml(rankInfo(data.likeCount, data.followerCount).rank),
+  rankOffset: (data) => {
+    const { progress } = rankInfo(data.likeCount, data.followerCount);
+    return String(Math.round(RANK_CIRCUM * (1 - progress / 100) * 10) / 10);
+  },
   avatar: (data) => avatarBlock(data),
   background: (data) => (data.backgroundUri ? backgroundBlock(data) : ""),
 };
