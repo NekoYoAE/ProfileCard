@@ -75,7 +75,7 @@ export default {
         .then((profileRes) => {
           const bgUrl = profileRes?.body?.memberArchive?.homepageCover || "";
           return bgUrl
-            ? fetchImageData(bgUrl, 1024 * 1024, { width: 800, height: 260, fit: "cover", format: "jpeg", quality: 70 })
+            ? fetchImageData(bgUrl, Number.POSITIVE_INFINITY, { width: 800, height: 260, fit: "cover", format: "jpeg", quality: 70 })
             : null;
         })
         .catch(() => null);
@@ -125,7 +125,25 @@ async function postJson(url, body, timeoutMs = 6000) {
 }
 
 async function fetchImageData(url, maxBytes = 1024 * 1024, resizeOpts = null) {
-  const attempts = [fetchAsDataUri(url)];
+  const original = await fetchAsDataUri(url);
+  if (!original) return null;
+
+  const isGif = original.dataUri.startsWith("data:image/gif");
+  const isWebp = original.dataUri.startsWith("data:image/webp");
+
+  if (isGif || isWebp) {
+    if (original.bytes <= maxBytes) return original;
+    if (isGif && resizeOpts) {
+      try {
+        const resized = await fetchAsDataUri(
+          ossResizeUrl(url, resizeOpts.width, resizeOpts.height, 0, "gif", "m_lfit")
+        );
+        if (resized && resized.bytes <= maxBytes) return resized;
+      } catch {}
+    }
+  }
+
+  const attempts = [original];
   if (resizeOpts) {
     attempts.push(
       fetchAsDataUri(ossResizeUrl(url, resizeOpts.width, resizeOpts.height, resizeOpts.quality))
@@ -171,9 +189,11 @@ function firstImageMatch(attempts, maxBytes) {
   });
 }
 
-function ossResizeUrl(url, width, height, quality) {
+function ossResizeUrl(url, width, height, quality, format = "jpg", fit = "m_fill") {
   const sep = url.includes("?") ? "&" : "?";
-  return `${url}${sep}x-oss-process=image/resize,w_${width},h_${height},m_fill/format,jpg/quality,q_${quality}`;
+  const hPart = height ? `,h_${height}` : "";
+  const qPart = quality ? `/quality,q_${quality}` : "";
+  return `${url}${sep}x-oss-process=image/resize,w_${width}${hPart},${fit}/format,${format}${qPart}`;
 }
 
 async function fetchWithTimeout(url, opts = {}, ms = 10000) {
