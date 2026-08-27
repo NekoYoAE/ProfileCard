@@ -32,7 +32,6 @@ async function renderError(env, theme, title = "出错了", message = "无法加
 
 const API_BASE = "https://community-web.ccw.site";
 const OID_RE = /^[0-9a-fA-F]{24}$/;
-const BLOCKED_OIDS = new Set(["65c0d5214b42321bf8da4378"]);
 
 export default {
   async fetch(request, env, ctx) {
@@ -53,10 +52,6 @@ export default {
 
     if (!OID_RE.test(oid)) {
       return svg(await renderError(env, theme, "参数错误", "无效的oid", { animation }), { "cache-control": "no-store" }, 400);
-    }
-
-    if (BLOCKED_OIDS.has(oid)) {
-      return svg(await renderError(env, theme, "用户不存在", "未找到该用户", { animation }), { "cache-control": "no-store" }, 404);
     }
 
     try {
