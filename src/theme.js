@@ -46,8 +46,11 @@ export function themeCss(theme = "dark") {
 export function applyTheme(svg, theme = "dark", opts = {}) {
   if (typeof svg !== "string") return svg;
   let css = themeCss(theme);
+  css += `@keyframes loadingPulse{0%,100%{opacity:.4}50%{opacity:1}}`;
+  css += `.bg-loading .loading-text{fill:var(--label);font-size:13px;animation:loadingPulse 1.4s ease-in-out infinite}`;
+  css += `.bg-loading .loading-sm{font-size:10px}`;
   if (opts.animation === false) {
-    css += `svg .anim,svg .anim-avatar,svg .bg-img,svg .ring-progress{animation:none!important}`;
+    css += `svg .anim,svg .anim-avatar,svg .bg-img,svg .ring-progress,svg .bg-loading .loading-text{animation:none!important}`;
   }
   return svg.replace("</style>", `${css}</style>`);
 }

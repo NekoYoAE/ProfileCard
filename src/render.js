@@ -49,7 +49,7 @@ const formatters = {
     return String(Math.round(RANK_CIRCUM * (1 - progress / 100) * 10) / 10);
   },
   avatar: (data) => avatarBlock(data),
-  background: (data) => (data.backgroundUri ? backgroundBlock(data) : ""),
+  background: (data) => (data.backgroundUri || data.backgroundUrl ? backgroundBlock(data) : ""),
 };
 
 function num(v, fallback) {
@@ -86,12 +86,20 @@ function rawValue(key, data) {
 }
 
 function avatarBlock(data) {
-  if (data.avatarUri) {
-    return `<g class="anim-avatar d1" filter="url(#avatarShadow)"><g clip-path="url(#avatarClip)"><image href="${escapeXmlAttr(data.avatarUri)}" x="22" y="95" width="76" height="76" preserveAspectRatio="xMidYMid slice" /></g></g>`;
+  const src = data.avatarUri || data.avatarUrl;
+  if (src) {
+    const loading = data.avatarUrl && !data.avatarUri
+      ? `<g class="bg-loading"><rect x="22" y="95" width="76" height="76" fill="url(#fallbackBg)" /><text class="loading-text loading-sm" x="60" y="140" text-anchor="middle">加载中</text></g>`
+      : "";
+    return `<g class="anim-avatar d1" filter="url(#avatarShadow)"><g clip-path="url(#avatarClip)">${loading}<image href="${escapeXmlAttr(src)}" x="22" y="95" width="76" height="76" preserveAspectRatio="xMidYMid slice" /></g></g>`;
   }
   return `<g class="anim-avatar d1" filter="url(#avatarShadow)"><circle cx="60" cy="133" r="38" fill="url(#fallbackBg)" /></g><text class="avatar-initial" x="60" y="144" text-anchor="middle">${escapeXml(String(data.name || "?").charAt(0))}</text>`;
 }
 
 function backgroundBlock(data) {
-  return `<g class="bg-img"><image href="${escapeXmlAttr(data.backgroundUri)}" x="0" y="0" width="400" height="130" preserveAspectRatio="xMidYMid slice" /></g>`;
+  const src = data.backgroundUri || data.backgroundUrl;
+  const loading = data.backgroundUrl && !data.backgroundUri
+    ? `<g class="bg-loading"><rect x="0" y="0" width="400" height="130" fill="var(--card-bg)" /><text class="loading-text" x="200" y="70" text-anchor="middle">加载中</text></g>`
+    : "";
+  return `${loading}<g class="bg-img"><image href="${escapeXmlAttr(src)}" x="0" y="0" width="400" height="130" preserveAspectRatio="xMidYMid slice" /></g>`;
 }

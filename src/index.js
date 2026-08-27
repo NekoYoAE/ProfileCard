@@ -33,6 +33,7 @@ async function renderError(env, theme, title = "出错了", message = "无法加
 const API_BASE = "https://community-web.ccw.site";
 const OID_RE = /^[0-9a-fA-F]{24}$/;
 const BLOCKED_OIDS = new Set(["65c0d5214b42321bf8da4378"]);
+const EMBED_LIMIT = 128 * 1024;
 
 export default {
   async fetch(request, env, ctx) {
@@ -98,7 +99,9 @@ export default {
       const data = {
         name: user.name || "Unknown",
         avatarUri: avatarImg?.dataUri || "",
+        avatarUrl: avatarImg?.url || "",
         backgroundUri: bgImg?.dataUri || "",
+        backgroundUrl: bgImg?.url || "",
         bio: user.bio || "",
         likeCount: stats.likeCount ?? 0,
         followerCount: stats.followerCount ?? 0,
@@ -106,7 +109,7 @@ export default {
       };
 
       return svg(renderCardSvg(template, data, theme, { animation }), {
-        "cache-control": "public, max-age=60",
+        "cache-control": "public, max-age=60, s-maxage=300",
       });
     } catch (err) {
       console.error(err);
@@ -126,19 +129,15 @@ async function postJson(url, body, timeoutMs = 6000) {
 
 async function fetchImageData(url, maxBytes = 1024 * 1024, resizeOpts = null) {
   const meta = await probeGif(url);
+  const gifResize = resizeOpts ? ossResizeUrl(url, resizeOpts.width, resizeOpts.height, 0, "", "m_lfit") : null;
+  const staticResize = resizeOpts ? ossResizeUrl(url, resizeOpts.width, resizeOpts.height, resizeOpts.quality) : null;
 
   if (meta?.type === "gif") {
     if (!meta.width || meta.width <= (resizeOpts?.width || 0)) {
       const original = await fetchAsDataUri(url).catch(() => null);
-      if (original && original.bytes <= maxBytes) return original;
+      if (original && original.bytes <= maxBytes && original.bytes <= EMBED_LIMIT) return original;
     }
-    if (resizeOpts) {
-      const resized = await fetchAsDataUri(
-        ossResizeUrl(url, resizeOpts.width, resizeOpts.height, 0, "", "m_lfit")
-      ).catch(() => null);
-      if (resized && resized.bytes <= maxBytes) return resized;
-    }
-    return null;
+    return gifResize ? { url: gifResize } : null;
   }
 
   const original = await fetchAsDataUri(url).catch(() => null);
@@ -148,19 +147,18 @@ async function fetchImageData(url, maxBytes = 1024 * 1024, resizeOpts = null) {
   const isWebp = original.dataUri.startsWith("data:image/webp");
 
   if (isGif || isWebp) {
-    if (!resizeOpts) return original;
-    const resized = fetchAsDataUri(
-      ossResizeUrl(url, resizeOpts.width, resizeOpts.height, 0, "", "m_lfit")
-    ).catch(() => null);
-    return (await pickSmallest([original, resized], maxBytes)) || original;
+    if (!resizeOpts) return original.bytes <= EMBED_LIMIT ? original : { url };
+    const resized = await fetchAsDataUri(gifResize).catch(() => null);
+    const best = await pickSmallest([original, resized], maxBytes);
+    if (best && best.bytes <= EMBED_LIMIT) return best;
+    return { url: gifResize };
   }
 
   if (resizeOpts) {
-    const resized = fetchAsDataUri(
-      ossResizeUrl(url, resizeOpts.width, resizeOpts.height, resizeOpts.quality)
-    ).catch(() => null);
-    const hit = await pickSmallest([original, resized], maxBytes);
-    if (hit) return hit;
+    const resized = await fetchAsDataUri(staticResize).catch(() => null);
+    const best = await pickSmallest([original, resized], maxBytes);
+    if (best && best.bytes <= EMBED_LIMIT) return best;
+    if (resized) return { url: staticResize };
     try {
       const cf = await fetchAsDataUri(url, {
         cf: {
@@ -173,12 +171,12 @@ async function fetchImageData(url, maxBytes = 1024 * 1024, resizeOpts = null) {
           },
         },
       });
-      if (cf && cf.bytes <= maxBytes) return cf;
+      if (cf && cf.bytes <= EMBED_LIMIT) return cf;
     } catch {}
-    return null;
+    return { url };
   }
 
-  return original;
+  return original.bytes <= EMBED_LIMIT ? original : { url };
 }
 
 async function probeGif(url) {
