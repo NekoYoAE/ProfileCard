@@ -33,6 +33,10 @@ async function renderError(env, theme, title = "出错了", message = "无法加
 const API_BASE = "https://community-web.ccw.site";
 const OID_RE = /^[0-9a-fA-F]{24}$/;
 
+const BLACKLIST = new Set([
+  "69704d3886bbc77f84e44e23",
+]);
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -52,6 +56,10 @@ export default {
 
     if (!OID_RE.test(oid)) {
       return svg(await renderError(env, theme, "参数错误", "无效的oid", { animation }), { "cache-control": "no-store" }, 400);
+    }
+
+    if (BLACKLIST.has(oid.toLowerCase())) {
+      return svg(await renderError(env, theme, "他妈的这个傻逼用我的东西私自转发不标注原作者还感谢别人", "", { animation }), { "cache-control": "no-store" }, 403);
     }
 
     try {
