@@ -1,5 +1,5 @@
 import { renderCardSvg } from "./render.js";
-import { themeValues } from "./theme.js";
+import { escapeXml, textWidth } from "./utils.js";
 
 const cardStyles = {
   1: "Card_1.svg",
@@ -19,15 +19,212 @@ async function getCardTemplate(card, env) {
   return templateCache.get(file);
 }
 
+const ERROR_SLOT_TITLE = "%%ERR_TITLE%%";
+const ERROR_SLOT_MESSAGE = "%%ERR_MESSAGE%%";
+
+const ERROR_LAYOUT = {
+  padX: 20,
+  padBottom: 18,
+  titleY: 38,
+  titleFontSize: 16,
+  messageFontSize: 12,
+  lineHeight: 1.4,
+  maxTitleLines: 6,
+  maxMessageLines: 5,
+};
+
+const ERROR_FALLBACK_TEMPLATE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 90" width="260" height="90" role="img" aria-label="出错了"><style>svg{--card-bg:#1c1f26;--name:#e6e6e6;--bio:#9ca3af}.bg{fill:var(--card-bg)}.title{fill:var(--name);font-size:16px;font-weight:700}.desc{fill:var(--bio);font-size:12px}</style><rect class="bg" x="0" y="0" width="260" height="90" rx="14" /><text class="title" x="20" y="38">${ERROR_SLOT_TITLE}</text><text class="desc" x="20" y="60">${ERROR_SLOT_MESSAGE}</text></svg>`;
+
 async function renderError(env, theme, title = "出错了", message = "无法加载数据，请稍后重试", opts = {}) {
+  let tpl;
   try {
-    const tpl = await getCardTemplate("error", env);
-    return renderCardSvg(tpl, { title, message }, theme, opts);
+    tpl = await getCardTemplate("error", env);
   } catch (err) {
     console.error("Failed to load Error.svg", err);
-    const v = themeValues(theme);
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 90" width="260" height="90" role="img" aria-label="出错了"><rect width="260" height="90" rx="14" fill="${v["--card-bg"]}"/><text x="20" y="38" font-family="sans-serif" font-size="16" font-weight="700" fill="${v["--name"]}">出错了</text><text x="20" y="60" font-family="sans-serif" font-size="12" fill="${v["--bio"]}">无法加载数据，请稍后重试</text></svg>`;
+    tpl = ERROR_FALLBACK_TEMPLATE;
   }
+  const markup = renderCardSvg(tpl, { title: ERROR_SLOT_TITLE, message: ERROR_SLOT_MESSAGE }, theme, opts);
+  return fitErrorText(markup, title, message);
+}
+
+function fitErrorText(markup, title, message) {
+  const size = svgSize(markup);
+  const maxWidth = Math.max(40, size.width - ERROR_LAYOUT.padX * 2);
+
+  const titleEl = locateTextElement(markup, ERROR_SLOT_TITLE);
+  const messageEl = locateTextElement(markup, ERROR_SLOT_MESSAGE);
+
+  const titleFontSize = titleEl ? titleEl.fontSize : ERROR_LAYOUT.titleFontSize;
+  const messageFontSize = messageEl ? messageEl.fontSize : ERROR_LAYOUT.messageFontSize;
+  const titleLh = Math.round(titleFontSize * ERROR_LAYOUT.lineHeight);
+  const messageLh = Math.round(messageFontSize * ERROR_LAYOUT.lineHeight);
+
+  const startY = titleEl ? titleEl.y : ERROR_LAYOUT.titleY;
+  const titleLines = title ? wrapLines(title, maxWidth, titleFontSize, ERROR_LAYOUT.maxTitleLines) : [];
+  const messageLines = message ? wrapLines(message, maxWidth, messageFontSize, ERROR_LAYOUT.maxMessageLines) : [];
+
+  const messageStart = titleLines.length
+    ? startY + titleLines.length * titleLh
+    : (messageEl ? messageEl.y : startY);
+
+  const titleBottom = titleLines.length ? startY + (titleLines.length - 1) * titleLh : 0;
+  const messageBottom = messageLines.length ? messageStart + (messageLines.length - 1) * messageLh : 0;
+  const height = Math.max(size.height, Math.round(Math.max(titleBottom, messageBottom) + ERROR_LAYOUT.padBottom));
+
+  const filled = moveTextY(markup, messageEl, messageStart)
+    .replace(ERROR_SLOT_TITLE, () => tspanBlock(titleLines, titleEl ? titleEl.x : ERROR_LAYOUT.padX, titleLh))
+    .replace(ERROR_SLOT_MESSAGE, () => tspanBlock(messageLines, messageEl ? messageEl.x : ERROR_LAYOUT.padX, messageLh));
+
+  return resizeCard(filled, height);
+}
+
+function moveTextY(markup, el, y) {
+  if (!el || el.y === y) return markup;
+  const tag = el.tag.replace(/(\sy="\s*)[-\d.]+(\s*")/, `$1${y}$2`);
+  return markup.slice(0, el.openStart) + tag + markup.slice(el.openEnd + 1);
+}
+
+function tspanBlock(lines, x, lineHeight) {
+  if (!lines.length) return "";
+  return lines
+    .map((line, i) => `<tspan x="${x}"${i ? ` dy="${lineHeight}"` : ""}>${escapeXml(line)}</tspan>`)
+    .join("");
+}
+
+const CJK_RE = /[\u2E80-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF\u3000-\u303F]/;
+
+function tokenize(text) {
+  const tokens = [];
+  let word = "";
+  const flushWord = () => {
+    if (word) tokens.push(word);
+    word = "";
+  };
+  for (const ch of String(text)) {
+    if (ch === "\n" || ch === "\r") {
+      flushWord();
+      if (ch === "\n") tokens.push("\n");
+    } else if (ch === " ") {
+      flushWord();
+      tokens.push(" ");
+    } else if (CJK_RE.test(ch)) {
+      flushWord();
+      tokens.push(ch);
+    } else {
+      word += ch;
+    }
+  }
+  flushWord();
+  return tokens;
+}
+
+function wrapLines(text, maxWidth, fontSize, maxLines = Infinity) {
+  const lines = [];
+  let cur = "";
+  const flush = () => {
+    lines.push(cur.trimEnd());
+    cur = "";
+  };
+
+  for (const token of tokenize(text)) {
+    if (token === "\n") {
+      flush();
+    } else if (token === " ") {
+      if (cur) cur += " ";
+    } else if (!cur) {
+      if (textWidth(token, fontSize) <= maxWidth) {
+        cur = token;
+        continue;
+      }
+      let part = "";
+      for (const ch of token) {
+        if (part && textWidth(part + ch, fontSize) > maxWidth) {
+          lines.push(part);
+          part = ch;
+        } else {
+          part += ch;
+        }
+      }
+      cur = part;
+    } else if (textWidth(cur + token, fontSize) > maxWidth) {
+      flush();
+      cur = token;
+    } else {
+      cur += token;
+    }
+  }
+  flush();
+
+  const wrapped = lines.length ? lines.filter((line, i) => line !== "" || i === 0) : [""];
+  if (wrapped.length > maxLines) {
+    const kept = wrapped.slice(0, maxLines);
+    kept[kept.length - 1] = ellipsize(kept[kept.length - 1], maxWidth, fontSize);
+    return kept;
+  }
+  return wrapped;
+}
+
+function ellipsize(line, maxWidth, fontSize) {
+  if (textWidth(`${line}…`, fontSize) <= maxWidth) return `${line}…`;
+  let out = "";
+  for (const ch of line) {
+    if (textWidth(`${out}${ch}…`, fontSize) > maxWidth) break;
+    out += ch;
+  }
+  return `${out}…`;
+}
+
+function svgSize(markup) {
+  const start = markup.indexOf("<svg");
+  const svgTag = start < 0 ? "" : markup.slice(start, markup.indexOf(">", start) + 1);
+  const vb = svgTag.match(/viewBox="\s*[-\d.]+\s+[-\d.]+\s+([\d.]+)\s+([\d.]+)\s*"/);
+  return {
+    width: vb ? Number(vb[1]) : numAttr(svgTag, "width", 260),
+    height: vb ? Number(vb[2]) : numAttr(svgTag, "height", 90),
+  };
+}
+
+function locateTextElement(markup, slot) {
+  const idx = markup.indexOf(slot);
+  if (idx < 0) return null;
+  const openStart = markup.lastIndexOf("<text", idx);
+  if (openStart < 0) return null;
+  const openEnd = markup.indexOf(">", openStart);
+  if (openEnd < 0 || openEnd > idx) return null;
+  const open = markup.slice(openStart, openEnd + 1);
+  const cls = (open.match(/class="([^"]*)"/) || [])[1] || "";
+  const fallbackSize = cls.includes("desc") ? ERROR_LAYOUT.messageFontSize : ERROR_LAYOUT.titleFontSize;
+  return {
+    tag: open,
+    openStart,
+    openEnd,
+    x: numAttr(open, "x", ERROR_LAYOUT.padX),
+    y: numAttr(open, "y", ERROR_LAYOUT.titleY),
+    fontSize: numAttr(open, "font-size", 0) || classFontSize(markup, cls, fallbackSize),
+  };
+}
+
+function numAttr(tag, name, fallback) {
+  const m = tag.match(new RegExp(`(?:^|\\s)${name}="\\s*([-\\d.]+)\\s*"`));
+  const n = m ? Number(m[1]) : NaN;
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function classFontSize(markup, cls, fallback) {
+  for (const name of String(cls).trim().split(/\s+/)) {
+    if (!name) continue;
+    const safe = name.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&");
+    const m = markup.match(new RegExp(`\\.${safe}\\s*\\{[^}]*font-size\\s*:\\s*([\\d.]+)px`));
+    if (m) return Number(m[1]);
+  }
+  return fallback;
+}
+
+function resizeCard(markup, height) {
+  return markup
+    .replace(/(viewBox="\s*[-\d.]+\s+[-\d.]+\s+[\d.]+\s+)[\d.]+/, `$1${height}`)
+    .replace(/(<svg\b[^>]*\sheight=")[\d.]+/, `$1${height}`)
+    .replace(/(<rect\b[^>]*class="[^"]*\bbg\b[^"]*"[^>]*\sheight=")[\d.]+/, `$1${height}`);
 }
 
 const API_BASE = "https://community-web.ccw.site";
@@ -59,7 +256,7 @@ export default {
     }
 
     if (BLACKLIST.has(oid.toLowerCase())) {
-      return svg(await renderError(env, theme, "他妈的这个傻逼用我的东西私自转发不标注原作者还感谢别人", "", { animation }), { "cache-control": "no-store" }, 403);
+      return svg(await renderError(env, theme, "他妈的这个傻逼用我的ProfileCard私自转发不标注原作者还感谢别人，碰到这样的傻子真无语了", "", { animation }), { "cache-control": "no-store" }, 403);
     }
 
     try {
