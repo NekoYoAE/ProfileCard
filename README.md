@@ -4,7 +4,7 @@
 ## 使用说明
 将项目代码复制到ccw个人主页的简介处：
 ```md
-![提示文字](https://profilecard.seia0070.dpdns.org/?oid=你的账号oid)
+![提示文字](https://profilecard.nekoyo.cloud/?oid=你的账号oid)
 ```
 
 ---
@@ -22,11 +22,11 @@
 
 卡片样式1：
 
-![卡片样式1](https://profilecard.seia0070.dpdns.org/?oid=5d47fec31c94e579b89cd259&card=1)
+![卡片样式1](https://profilecard.nekoyo.cloud/?oid=5d47fec31c94e579b89cd259&card=1)
 
 卡片样式2：
 
-![卡片样式1](https://profilecard.seia0070.dpdns.org/?oid=5d47fec31c94e579b89cd259&card=2)
+![卡片样式1](https://profilecard.nekoyo.cloud/?oid=5d47fec31c94e579b89cd259&card=2)
 
 ---
 服务基于 Cloudflare Worker ，加载速度慢是正常情况
