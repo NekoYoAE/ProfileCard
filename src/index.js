@@ -238,6 +238,10 @@ export default {
       return new Response("Not Found", { status: 404 });
     }
 
+    if (!url.searchParams.has("oid")) {
+      return page(env);
+    }
+
     const oid = (url.searchParams.get("oid") || "").trim();
     const theme = (url.searchParams.get("theme") || "dark").toLowerCase() === "light" ? "light" : "dark";
     const card = Number(url.searchParams.get("card")) || 1;
@@ -306,6 +310,22 @@ export default {
     }
   },
 };
+
+let pageCache = null;
+
+async function page(env) {
+  if (!pageCache) {
+    const res = await env.ASSETS.fetch(new URL("/home.html", "https://assets.local/"));
+    if (!res.ok) return new Response("Not Found", { status: 404 });
+    pageCache = await res.text();
+  }
+  return new Response(pageCache, {
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "public, max-age=300",
+    },
+  });
+}
 
 async function postJson(url, body, timeoutMs = 6000) {
   const res = await fetchWithTimeout(url, {

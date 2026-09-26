@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ProfileCard 生成器</title>
+<style>
+  :root{
+    --bg:#ffffff; --fg:#111827; --muted:#6b7280; --bd:#e5e7eb;
+    --card:#fafafa; --accent:#2563eb;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0f1115; --fg:#e6e6e6; --muted:#9ca3af; --bd:#262b33;
+      --card:#151922; --accent:#60a5fa;
+    }
+    .gh img{ filter: invert(1); }
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; padding:32px 16px; background:var(--bg); color:var(--fg);
+    font:14px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  main{ max-width:640px; margin:0 auto; }
+  header{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:24px; }
+  h1{ margin:0; font-size:18px; font-weight:600; }
+  .gh{ display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:13px; text-decoration:none; }
+  .gh:hover{ color:var(--accent); }
+  .gh img{ width:16px; height:16px; display:block; }
+  .field{ margin-bottom:14px; }
+  .row{ display:flex; gap:12px; }
+  .row > *{ flex:1; min-width:0; }
+  label{ display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
+  input, select{
+    width:100%; padding:8px 10px; border:1px solid var(--bd); border-radius:8px;
+    background:var(--bg); color:var(--fg); font:inherit;
+  }
+  input:focus, select:focus{ outline:none; border-color:var(--accent); }
+  section{ margin-top:24px; }
+  h2{ margin:0 0 8px; font-size:12px; font-weight:600; color:var(--muted); letter-spacing:.06em; }
+  .preview{
+    min-height:140px; display:flex; align-items:center; justify-content:center;
+    padding:16px; border:1px dashed var(--bd); border-radius:12px; background:var(--card);
+  }
+  .preview img{ max-width:100%; display:block; border-radius:10px; }
+  .ph{ color:var(--muted); font-size:13px; }
+  pre{
+    margin:0; padding:12px; border:1px solid var(--bd); border-radius:10px;
+    background:var(--card); font-size:12px; white-space:pre-wrap; word-break:break-all;
+  }
+  .bar{ display:flex; justify-content:space-between; align-items:center; margin-top:8px; }
+  .hint{ font-size:12px; color:var(--muted); }
+  button{
+    padding:6px 14px; border:1px solid var(--bd); border-radius:8px;
+    background:var(--bg); color:var(--fg); font:inherit; cursor:pointer;
+  }
+  button:hover{ border-color:var(--accent); color:var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>ProfileCard 生成器</h1>
+    <a class="gh" href="https://github.com/NekoYoAE/ProfileCard" target="_blank" rel="noopener">
+      <img src="https://cdn.jsdelivr.net/npm/simple-icons@13/icons/github.svg" alt="GitHub 图标"
+           onerror="this.onerror=null;this.src='https://github.githubassets.com/favicons/favicon.svg'">
+      <span>GitHub项目</span>
+    </a>
+  </header>
+
+  <div class="field">
+    <label for="oid">oid</label>
+    <input id="oid" type="text" placeholder="" autocomplete="off" spellcheck="false">
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label for="theme">theme</label>
+      <select id="theme">
+        <option value="dark">dark</option>
+        <option value="light">light</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="card">card</label>
+      <select id="card">
+        <option value="1">1</option>
+        <option value="2">2</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="animation">animation</label>
+      <select id="animation">
+        <option value="1">1（开）</option>
+        <option value="0">0（关）</option>
+      </select>
+    </div>
+  </div>
+
+  <section>
+    <h2>预览</h2>
+    <div class="preview">
+      <span class="ph" id="ph">填写 oid 后显示预览</span>
+      <img id="img" alt="卡片预览" hidden>
+    </div>
+  </section>
+
+  <section>
+    <h2>Markdown 代码</h2>
+    <pre id="md">![]()</pre>
+    <div class="bar">
+      <span class="hint" id="hint"></span>
+      <button id="copy" type="button">复制</button>
+    </div>
+  </section>
+</main>
+
+<script>
+  const DEFAULTS = { theme: "dark", card: "1", animation: "1" };
+  const OID_RE = /^[0-9a-fA-F]{24}$/;
+  const el = (id) => document.getElementById(id);
+  const oidInput = el("oid"), img = el("img"), ph = el("ph"), hint = el("hint");
+  let timer = 0;
+
+  function buildUrl() {
+    const oid = oidInput.value.trim();
+    const params = new URLSearchParams();
+    if (oid) params.set("oid", oid);
+    for (const [key, def] of Object.entries(DEFAULTS)) {
+      const v = el(key).value;
+      if (v !== def) params.set(key, v);
+    }
+    const q = params.toString();
+    return location.origin + "/" + (q ? "?" + q : "");
+  }
+
+  function setPreview(state, text) {
+    if (state === "img") {
+      img.hidden = false; ph.hidden = true;
+    } else {
+      img.hidden = true; ph.hidden = false; ph.textContent = text;
+    }
+  }
+
+  function render() {
+    const oid = oidInput.value.trim();
+    const url = buildUrl();
+    el("md").textContent = "![](" + url + ")";
+
+    clearTimeout(timer);
+    hint.textContent = "";
+
+    if (!oid) { setPreview("ph", "填写 oid 后显示预览"); return; }
+    if (!OID_RE.test(oid)) { setPreview("ph", "oid 格式不正确"); hint.textContent = "oid 应为24位"; return; }
+
+    setPreview("ph", "加载中…");
+    timer = setTimeout(() => {
+      const next = new Image();
+      next.onload = () => { img.src = url; setPreview("img"); };
+      next.onerror = () => setPreview("ph", "预览加载失败，请检查 oid");
+      next.src = url;
+    }, 400);
+  }
+
+  ["oid", "theme", "card", "animation"].forEach((id) => {
+    el(id).addEventListener("input", render);
+    el(id).addEventListener("change", render);
+  });
+
+  el("copy").addEventListener("click", async () => {
+    const text = el("md").textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      hint.textContent = "已复制";
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); ta.remove();
+      hint.textContent = "已复制";
+    }
+    setTimeout(() => { if (hint.textContent === "已复制") hint.textContent = ""; }, 1500);
+  });
+
+  render();
+</script>
+</body>
+</html>
