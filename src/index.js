@@ -230,10 +230,6 @@ function resizeCard(markup, height) {
 const API_BASE = "https://community-web.ccw.site";
 const OID_RE = /^[0-9a-fA-F]{24}$/;
 
-const BLACKLIST = new Set([
-  "69704d3886bbc77f84e44e23",
-]);
-
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -253,10 +249,6 @@ export default {
 
     if (!OID_RE.test(oid)) {
       return svg(await renderError(env, theme, "参数错误", "无效的oid", { animation }), { "cache-control": "no-store" }, 400);
-    }
-
-    if (BLACKLIST.has(oid.toLowerCase())) {
-      return svg(await renderError(env, theme, "他妈的这个傻逼用我的ProfileCard私自转发不标注原作者还感谢别人，碰到这样的傻子真无语了", "", { animation }), { "cache-control": "no-store" }, 403);
     }
 
     try {
