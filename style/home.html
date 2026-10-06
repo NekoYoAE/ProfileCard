@@ -64,7 +64,7 @@
     <a class="gh" href="https://github.com/NekoYoAE/ProfileCard" target="_blank" rel="noopener">
       <img src="https://cdn.jsdelivr.net/npm/simple-icons@13/icons/github.svg" alt="GitHub 图标"
            onerror="this.onerror=null;this.src='https://github.githubassets.com/favicons/favicon.svg'">
-      <span>GitHub项目</span>
+      <span>GitHub</span>
     </a>
   </header>
 
@@ -107,7 +107,7 @@
 
   <section>
     <h2>Markdown 代码</h2>
-    <pre id="md">![]()</pre>
+    <pre id="md">[![]()](https://profilecard.nekoyo.cloud/)</pre>
     <div class="bar">
       <span class="hint" id="hint"></span>
       <button id="copy" type="button">复制</button>
@@ -117,6 +117,7 @@
 
 <script>
   const DEFAULTS = { theme: "dark", card: "1", animation: "1" };
+  const SITE_URL = "https://profilecard.nekoyo.cloud/";
   const OID_RE = /^[0-9a-fA-F]{24}$/;
   const el = (id) => document.getElementById(id);
   const oidInput = el("oid"), img = el("img"), ph = el("ph"), hint = el("hint");
@@ -145,7 +146,7 @@
   function render() {
     const oid = oidInput.value.trim();
     const url = buildUrl();
-    el("md").textContent = "![](" + url + ")";
+    el("md").textContent = "[![](" + url + ")](" + SITE_URL + ")";
 
     clearTimeout(timer);
     hint.textContent = "";
@@ -157,7 +158,7 @@
     timer = setTimeout(() => {
       const next = new Image();
       next.onload = () => { img.src = url; setPreview("img"); };
-      next.onerror = () => setPreview("ph", "预览加载失败，请检查 oid");
+      next.onerror = () => setPreview("ph", "预览加载失败");
       next.src = url;
     }, 400);
   }

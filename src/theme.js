@@ -11,6 +11,7 @@ const themes = {
     "--shadow-color": "#000000",
     "--shadow-opacity": "0.35",
     "--accent": "#8b9cf7",
+    "--watermark": "#e6e6e6",
   },
   light: {
     "--card-bg": "#ffffff",
@@ -24,8 +25,13 @@ const themes = {
     "--shadow-color": "#ffffff",
     "--shadow-opacity": "0.25",
     "--accent": "#5b6bd6",
+    "--watermark": "#6b7280",
   },
 };
+
+export const WATERMARK_CSS =
+  `.pc-wm{fill:var(--watermark);opacity:0.75}` +
+  `.pc-wm-text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Roboto,Helvetica,Arial,sans-serif;font-size:14px;font-weight:600;letter-spacing:0.2px}`;
 
 export function isLight(theme) {
   return String(theme || "").toLowerCase() === "light";
@@ -45,7 +51,7 @@ export function themeCss(theme = "dark") {
 
 export function applyTheme(svg, theme = "dark", opts = {}) {
   if (typeof svg !== "string") return svg;
-  let css = themeCss(theme);
+  let css = themeCss(theme) + WATERMARK_CSS;
   if (opts.animation === false) {
     css += `svg .anim,svg .anim-avatar,svg .bg-img,svg .ring-progress{animation:none!important}`;
   }

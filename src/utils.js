@@ -40,6 +40,22 @@ export function truncate(s, maxWidth, fontSize) {
   return out + "…";
 }
 
+export function numAttr(tag, name, fallback) {
+  const m = tag.match(new RegExp(`(?:^|\\s)${name}="\\s*([-\\d.]+)\\s*"`));
+  const n = m ? Number(m[1]) : NaN;
+  return Number.isFinite(n) ? n : fallback;
+}
+
+export function svgSize(markup) {
+  const start = markup.indexOf("<svg");
+  const svgTag = start < 0 ? "" : markup.slice(start, markup.indexOf(">", start) + 1);
+  const vb = svgTag.match(/viewBox="\s*[-\d.]+\s+[-\d.]+\s+([\d.]+)\s+([\d.]+)\s*"/);
+  return {
+    width: vb ? Number(vb[1]) : numAttr(svgTag, "width", 260),
+    height: vb ? Number(vb[2]) : numAttr(svgTag, "height", 90),
+  };
+}
+
 export function fill(template, vars) {
   return template.replace(/\{\{(\w+)\}\}/g, (m, k) => (k in vars ? vars[k] : ""));
 }

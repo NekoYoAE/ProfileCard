@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 160" width="400" height="160" role="img" aria-label="{{nameAttr:280:22}}">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 158" width="400" height="158" role="img" aria-label="{{nameAttr:280:22}}">
   <style>
     svg {
       --card-bg: #1c1f26;
@@ -28,7 +28,7 @@
     .d2 { animation-delay: 0.16s; }
     @media (prefers-reduced-motion: reduce) { .anim, .ring-progress { animation: none; } }
   </style>
-  <rect x="0.5" y="0.5" rx="12" width="399" height="159" fill="var(--card-bg)" stroke="var(--line)" />
+  <rect x="0.5" y="0.5" rx="12" width="399" height="157" fill="var(--card-bg)" stroke="var(--line)" />
   <text class="header anim d0" x="18" y="36">{{name}}</text>
   <text class="bio anim d1" x="18" y="58">{{bio:235:14}}</text>
   <g transform="translate(20, 90)">

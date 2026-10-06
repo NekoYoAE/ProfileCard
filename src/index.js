@@ -1,5 +1,5 @@
-import { renderCardSvg } from "./render.js";
-import { escapeXml, textWidth } from "./utils.js";
+import { renderCardSvg, addWatermark } from "./render.js";
+import { escapeXml, textWidth, numAttr, svgSize } from "./utils.js";
 
 const cardStyles = {
   1: "Card_1.svg",
@@ -43,8 +43,8 @@ async function renderError(env, theme, title = "出错了", message = "无法加
     console.error("Failed to load Error.svg", err);
     tpl = ERROR_FALLBACK_TEMPLATE;
   }
-  const markup = renderCardSvg(tpl, { title: ERROR_SLOT_TITLE, message: ERROR_SLOT_MESSAGE }, theme, opts);
-  return fitErrorText(markup, title, message);
+  const markup = renderCardSvg(tpl, { title: ERROR_SLOT_TITLE, message: ERROR_SLOT_MESSAGE }, theme, { ...opts, watermark: false });
+  return addWatermark(fitErrorText(markup, title, message));
 }
 
 function fitErrorText(markup, title, message) {
@@ -174,16 +174,6 @@ function ellipsize(line, maxWidth, fontSize) {
   return `${out}…`;
 }
 
-function svgSize(markup) {
-  const start = markup.indexOf("<svg");
-  const svgTag = start < 0 ? "" : markup.slice(start, markup.indexOf(">", start) + 1);
-  const vb = svgTag.match(/viewBox="\s*[-\d.]+\s+[-\d.]+\s+([\d.]+)\s+([\d.]+)\s*"/);
-  return {
-    width: vb ? Number(vb[1]) : numAttr(svgTag, "width", 260),
-    height: vb ? Number(vb[2]) : numAttr(svgTag, "height", 90),
-  };
-}
-
 function locateTextElement(markup, slot) {
   const idx = markup.indexOf(slot);
   if (idx < 0) return null;
@@ -202,12 +192,6 @@ function locateTextElement(markup, slot) {
     y: numAttr(open, "y", ERROR_LAYOUT.titleY),
     fontSize: numAttr(open, "font-size", 0) || classFontSize(markup, cls, fallbackSize),
   };
-}
-
-function numAttr(tag, name, fallback) {
-  const m = tag.match(new RegExp(`(?:^|\\s)${name}="\\s*([-\\d.]+)\\s*"`));
-  const n = m ? Number(m[1]) : NaN;
-  return Number.isFinite(n) ? n : fallback;
 }
 
 function classFontSize(markup, cls, fallback) {

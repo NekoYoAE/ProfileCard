@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 265" width="400" height="265" role="img" aria-label="{{nameAttr}}">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 268" width="400" height="268" role="img" aria-label="{{nameAttr}}">
   <style>
     svg {
       --card-bg: #1c1f26;
@@ -56,7 +56,7 @@
     </filter>
   </defs>
   <g filter="url(#shadow)">
-    <rect class="card-bg" x="0" y="0" width="400" height="265" rx="16" />
+    <rect class="card-bg" x="0" y="0" width="400" height="268" rx="16" />
     <g class="anim d0" clip-path="url(#bannerClip)">
       <rect class="card-bg" x="0" y="0" width="400" height="130" />
       {{background}}
